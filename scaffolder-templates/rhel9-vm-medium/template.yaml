@@ -109,7 +109,6 @@ spec:
       action: publish:github
       input:
         repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}-gitops
-        title: GitOps resources for ${{parameters.component_id}}
         description: GitOps deployment resources for ${{parameters.component_id}}
         sourcePath: ./tenant-gitops
         defaultBranch: main
