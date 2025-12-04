@@ -56,25 +56,29 @@ spec:
           title: Instance Size
           type: string
           description: VM size (vCPU / Memory)
-          default: u1.medium
+          default: u1.small
           enum:
-            - u1.mini
+            - u1.nano
             - u1.micro
-            - u1.tiny
             - u1.small
             - u1.medium
             - u1.large
             - u1.xlarge
             - u1.2xlarge
+            - u1.2xmedium
+            - u1.4xlarge
+            - u1.8xlarge
           enumNames:
-            - Mini (1 vCPU / 1GB RAM)
-            - Micro (1 vCPU / 1.5GB RAM)
-            - Tiny (1 vCPU / 2GB RAM)
-            - Small (1 vCPU / 4GB RAM)
-            - Medium (2 vCPU / 8GB RAM)
-            - Large (4 vCPU / 16GB RAM)
-            - XLarge (8 vCPU / 32GB RAM)
-            - 2XLarge (16 vCPU / 64GB RAM)
+            - Nano (0.5 vCPU / 512MB RAM)
+            - Micro (1 vCPU / 1GB RAM)
+            - Small (1 vCPU / 2GB RAM)
+            - Medium (1 vCPU / 4GB RAM)
+            - Large (2 vCPU / 8GB RAM)
+            - XLarge (4 vCPU / 16GB RAM)
+            - 2XLarge (8 vCPU / 32GB RAM)
+            - 2XMedium (2 vCPU / 4GB RAM)
+            - 4XLarge (16 vCPU / 64GB RAM)
+            - 8XLarge (32 vCPU / 128GB RAM)
         storage_size:
           title: Storage Size
           type: string
