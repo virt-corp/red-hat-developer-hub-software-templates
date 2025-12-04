@@ -1,0 +1,146 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: add-rhel-vm-template
+  title: Add RHEL VM to Namespace
+  description: Adds a Red Hat Enterprise Linux virtual machine to an existing namespace
+  tags:
+    - vm
+    - rhel
+    - namespace
+    - kubevirt
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select Namespace
+      required:
+        - namespace_component
+      properties:
+        namespace_component:
+          title: Namespace Environment
+          type: string
+          description: Select the namespace to add this VM to
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: environment
+
+    - title: VM Configuration
+      required:
+        - vm_name
+        - os_image
+        - instance_type
+      properties:
+        vm_name:
+          title: VM Name
+          type: string
+          description: Name for the virtual machine
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        os_image:
+          title: RHEL Version
+          type: string
+          description: Red Hat Enterprise Linux version
+          default: rhel9
+          enum:
+            - rhel8
+            - rhel9
+            - rhel10
+          enumNames:
+            - RHEL 8
+            - RHEL 9
+            - RHEL 10
+        instance_type:
+          title: Instance Size
+          type: string
+          description: VM size (vCPU / Memory)
+          default: u1.medium
+          enum:
+            - u1.mini
+            - u1.micro
+            - u1.tiny
+            - u1.small
+            - u1.medium
+            - u1.large
+            - u1.xlarge
+            - u1.2xlarge
+          enumNames:
+            - Mini (1 vCPU / 1GB RAM)
+            - Micro (1 vCPU / 1.5GB RAM)
+            - Tiny (1 vCPU / 2GB RAM)
+            - Small (1 vCPU / 4GB RAM)
+            - Medium (2 vCPU / 8GB RAM)
+            - Large (4 vCPU / 16GB RAM)
+            - XLarge (8 vCPU / 32GB RAM)
+            - 2XLarge (16 vCPU / 64GB RAM)
+        storage_size:
+          title: Storage Size
+          type: string
+          description: Root disk size
+          default: 30Gi
+        vm_password:
+          title: VM Password
+          type: string
+          description: Password for cloud-user
+          default: changeme123
+          ui:widget: password
+
+  steps:
+    - id: fetchNamespaceInfo
+      name: Fetch namespace information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.namespace_component}}
+
+    - id: templateVm
+      name: Generate VM manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./vm-manifest
+        values:
+          vm_name: ${{parameters.vm_name}}
+          namespace_id: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}}
+          os_image: ${{parameters.os_image}}
+          instance_type: ${{parameters.instance_type}}
+          preference: ${{parameters.os_image | replace('rhel', 'rhel.')}}
+          storage_size: ${{parameters.storage_size}}
+          vm_password: ${{parameters.vm_password}}
+          environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+
+    - id: getRepoInfo
+      name: Extract repository information
+      action: debug:log
+      input:
+        message: "Repository: ${{steps.fetchNamespaceInfo.output.entity.metadata.annotations['github.com/project-slug']}}"
+
+    - id: publishPr
+      name: Create Pull Request with VM manifest
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops&owner=${{(steps.fetchNamespaceInfo.output.entity.metadata.annotations['github.com/project-slug'] | split('/') )[0]}}
+        title: "Add VM: ${{parameters.vm_name}}"
+        branchName: add-vm-${{parameters.vm_name}}
+        description: |
+          ## Add VM to Namespace
+
+          This PR adds a new virtual machine to the namespace.
+
+          **VM Details:**
+          - Name: `${{parameters.vm_name}}`
+          - OS: ${{parameters.os_image}}
+          - Size: ${{parameters.instance_type}}
+          - Storage: ${{parameters.storage_size}}
+
+          Once merged, ArgoCD will automatically deploy the VM to the `${{steps.fetchNamespaceInfo.output.entity.metadata.name}}` namespace.
+        sourcePath: vm-manifest
+        targetPath: manifests/vms
+
+  output:
+    links:
+      - title: View Pull Request
+        url: ${{steps.publishPr.output.remoteUrl}}
+      - title: Go to Namespace
+        url: ${{steps.fetchNamespaceInfo.output.entity.metadata.annotations['backstage.io/source-location'] | replace('url:', '')}}
