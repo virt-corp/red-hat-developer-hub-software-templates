@@ -55,11 +55,14 @@ spec:
         initialDelaySeconds: 60
         periodSeconds: 30
         timeoutSeconds: 10
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-        node-role.kubernetes.io/metal: ''
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        - key: metal
-          operator: Exists
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
       - name: vol-0
         dataVolume:

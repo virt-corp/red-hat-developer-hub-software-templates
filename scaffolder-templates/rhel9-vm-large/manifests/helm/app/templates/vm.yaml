@@ -37,11 +37,14 @@ spec:
             - disk:
                 bus: virtio
               name: cloudinitdisk
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-        node-role.kubernetes.io/metal: ''
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-        - key: metal
-          operator: Exists
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - dataVolume:
             name: rhel-9-private-mongoose-volume
