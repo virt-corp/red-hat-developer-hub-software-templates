@@ -40,6 +40,38 @@ spec:
             - disk:
                 bus: virtio
               name: cloudinitdisk
+          interfaces:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+            - name: podnet
+              masquerade: {}
+  {%- else %}
+            - name: {{ network | replace("/", "-") }}
+              bridge: {}
+  {%- endif %}
+{%- endfor %}
+{%- for nad in values.custom_nads %}
+            - name: {{ nad | replace("/", "-") }}
+              bridge: {}
+{%- endfor %}
+      networks:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+        - name: podnet
+          pod: {}
+  {%- else %}
+    {%- set parts = network.split("/") %}
+        - name: {{ network | replace("/", "-") }}
+          multus:
+            networkName: {{ parts[0] }}/{{ parts[1] }}
+  {%- endif %}
+{%- endfor %}
+{%- for nad in values.custom_nads %}
+  {%- set parts = nad.split("/") %}
+        - name: {{ nad | replace("/", "-") }}
+          multus:
+            networkName: {{ parts[0] }}/{{ parts[1] }}
+{%- endfor %}
       volumes:
         - dataVolume:
             name: ${{values.vm_name}}-volume

@@ -90,6 +90,34 @@ spec:
           description: Password for cloud-user
           default: changeme123
           ui:widget: password
+        networks:
+          title: Network Configuration
+          type: array
+          description: Select networks to attach to the VM
+          default: ["pod"]
+          items:
+            type: string
+            enum:
+              - pod
+              - default/vlan10-bridge
+              - default/vlan250
+              - default/vlan251
+              - default/vlan252
+            enumNames:
+              - Pod Network (masquerade)
+              - VLAN 10 Bridge (default namespace)
+              - VLAN 250 (default namespace)
+              - VLAN 251 (default namespace)
+              - VLAN 252 (default namespace)
+          uniqueItems: true
+        custom_nads:
+          title: Additional NADs
+          type: array
+          description: Add custom NetworkAttachmentDefinitions (format namespace/nad-name)
+          items:
+            type: string
+            pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?/[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          uniqueItems: true
 
   steps:
     - id: fetchNamespaceInfo
@@ -97,6 +125,12 @@ spec:
       action: catalog:fetch
       input:
         entityRef: ${{parameters.namespace_component}}
+
+    - id: listNADs
+      name: List available Network Attachment Definitions
+      action: debug:log
+      input:
+        message: "Fetching NADs from namespace: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}} and default namespace"
 
     - id: templateVm
       name: Generate VM manifest
@@ -113,6 +147,8 @@ spec:
           storage_size: ${{parameters.storage_size}}
           vm_password: ${{parameters.vm_password}}
           environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          networks: ${{parameters.networks}}
+          custom_nads: ${{parameters.custom_nads | default([])}}
 
     - id: publishPr
       name: Create Pull Request with VM manifest
