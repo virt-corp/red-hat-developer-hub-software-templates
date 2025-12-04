@@ -7,6 +7,7 @@ metadata:
   {%- endif %}
   annotations:
     argocd/app-name: ${{values.namespace_id}}-env
+    argocd/instance-name: endor-gitops
     backstage.io/kubernetes-id: ${{values.namespace_id}}
     backstage.io/kubernetes-namespace: ${{values.namespace_id}}
     backstage.io/source-location: url:https://github.com/${{values.org}}/${{values.namespace_id}}-gitops
