@@ -15,18 +15,12 @@ spec:
   parameters:
     - title: Provide information about the GitHub location
       required:
-        - group
-        - host
+        - org
       properties:
-        host:
-          title: Repo Host
-          type: string
-          description: Your SCM host
-          default: github.com
         org:
-          title: Repo Organization
+          title: GitHub Organization
           type: string
-          description: Your SCM host organization/group
+          description: Your GitHub organization
           default: virt-corp
     - title: Provide information about the new component
       required:
@@ -39,11 +33,11 @@ spec:
           type: string
           description: Id of the cluster
           default: .apps.endor.codell.io
-        namespace: 
+        namespace:
           title: Namespace
           type: string
           description: Namespace
-          default: virt-corp-userN
+          default: default
         owner:
           title: Owner
           type: string
@@ -76,11 +70,10 @@ spec:
         targetPath: ./source
         values:
           org: ${{parameters.org}}
-          owner: default/${{parameters.owner}}
+          owner: ${{parameters.owner}}
           cluster_id: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
           component_id: ${{parameters.component_id}}
-          host: ${{ parameters.host }}
           repoName: ${{parameters.component_id}}
           user_id: ${{parameters.owner}}
     - id: publishSource
@@ -88,7 +81,7 @@ spec:
       action: publish:github
       input:
         sourcePath: ./source
-        description: ${{parameters.description}}
+        description: Tomcat VM - ${{parameters.component_id}}
         repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}
         defaultBranch: main
         protectDefaultBranch: false
@@ -107,15 +100,15 @@ spec:
         copyWithoutTemplating: []
         values:
           component_id: ${{parameters.component_id}}
-          description: ${{parameters.description}}
-          destination:  https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
+          description: GitOps resources for ${{parameters.component_id}}
+          destination: https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
           source_repository: https://github.com/${{parameters.org}}/${{parameters.component_id}}.git
           repository_name: ${{parameters.component_id}}
-          git_host: ${{ parameters.host }}
+          git_host: github.com
           org: ${{parameters.org}}
           cluster: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
-          image_host: ${{parameters.image_host}}/${{parameters.namespace}}
+          image_host: ${{parameters.image_host}}
           image_name: ${{parameters.component_id}}
           user_id: ${{parameters.owner}}
         targetPath: ./tenant-gitops
@@ -124,8 +117,8 @@ spec:
       action: publish:github
       input:
         repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}-gitops
-        title: gitops resources for ${{parameters.namespace}}-gitops
-        description: gitops resources for ${{parameters.namespace}}-gitops
+        title: GitOps resources for ${{parameters.component_id}}
+        description: GitOps deployment resources for ${{parameters.component_id}}
         sourcePath: ./tenant-gitops
         defaultBranch: main
         protectDefaultBranch: false
@@ -136,7 +129,7 @@ spec:
       input:
         appName: ${{parameters.component_id}}-gitops
         argoInstance: endor-gitops
-        namespace: virt-corp
+        namespace: ${{parameters.namespace}}
         repoUrl: https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
         path: 'argocd/'
   output:
