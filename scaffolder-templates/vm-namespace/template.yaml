@@ -1,0 +1,117 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: vm-namespace-template
+  title: VM Namespace Environment
+  description: Creates a namespace environment for managing multiple VMs
+  tags:
+    - namespace
+    - vm
+    - environment
+spec:
+  owner: operations
+  type: environment
+
+  parameters:
+    - title: Provide information about the GitHub location
+      required:
+        - org
+      properties:
+        org:
+          title: GitHub Organization
+          type: string
+          description: Your GitHub organization
+          default: virt-corp
+    - title: Provide information about the new namespace
+      required:
+        - namespace_id
+        - environment
+        - cluster_id
+        - owner
+      properties:
+        namespace_id:
+          title: Namespace Name
+          type: string
+          description: Name of the namespace to create (e.g., team-vms, workloads)
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        environment:
+          title: Environment
+          type: string
+          description: Environment type
+          default: dev
+          enum:
+            - dev
+            - prod
+          enumNames:
+            - Development
+            - Production
+        cluster_id:
+          title: Cluster Id
+          type: string
+          description: Id of the cluster
+          default: .apps.endor.codell.io
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the namespace
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [User]
+        description:
+          title: Description
+          type: string
+          description: Description of this namespace environment
+          default: VM namespace environment
+
+  steps:
+    - id: templateSource
+      name: Generating the namespace component
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./source
+        values:
+          org: ${{parameters.org}}
+          owner: ${{parameters.owner}}
+          cluster_id: ${{parameters.cluster_id}}
+          namespace_id: ${{parameters.namespace_id}}
+          environment: ${{parameters.environment}}
+          description: ${{parameters.description}}
+          repoName: ${{parameters.namespace_id}}-gitops
+
+    - id: publishSource
+      name: Publishing to Source Code Repository
+      action: publish:github
+      input:
+        sourcePath: ./source
+        description: Namespace environment - ${{parameters.namespace_id}} (${{parameters.environment}})
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.namespace_id}}-gitops
+        defaultBranch: main
+        protectDefaultBranch: false
+        repoVisibility: public
+
+    - id: registerSource
+      name: Registering the Namespace Component
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{steps.publishSource.output.repoContentsUrl}}
+        catalogInfoPath: /catalog-info.yaml
+
+    - id: createArgoResources
+      name: Create ArgoCD Resources
+      action: argocd:create-resources
+      input:
+        appName: ${{parameters.namespace_id}}-env
+        argoInstance: endor-gitops
+        namespace: openshift-gitops
+        repoUrl: https://github.com/${{parameters.org}}/${{parameters.namespace_id}}-gitops.git
+        path: 'manifests/'
+
+  output:
+    links:
+      - title: GitOps Repository
+        url: ${{steps.publishSource.output.remoteUrl}}
+      - title: Open Component in catalog
+        icon: catalog
+        entityRef: ${{steps.registerSource.output.entityRef}}
