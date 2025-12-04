@@ -110,17 +110,11 @@ spec:
           vm_password: ${{parameters.vm_password}}
           environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
 
-    - id: getRepoInfo
-      name: Extract repository information
-      action: debug:log
-      input:
-        message: "Repository: ${{steps.fetchNamespaceInfo.output.entity.metadata.annotations['github.com/project-slug']}}"
-
     - id: publishPr
       name: Create Pull Request with VM manifest
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?repo=${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops&owner=${{(steps.fetchNamespaceInfo.output.entity.metadata.annotations['github.com/project-slug'] | split('/') )[0]}}
+        repoUrl: github.com?repo=${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops&owner=virt-corp
         title: "Add VM: ${{parameters.vm_name}}"
         branchName: add-vm-${{parameters.vm_name}}
         description: |
