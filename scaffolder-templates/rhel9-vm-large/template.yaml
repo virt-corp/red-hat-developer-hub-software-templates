@@ -13,21 +13,15 @@ spec:
   type: VM
 
   parameters:
-    - title: Provide information about the GitLab location
+    - title: Provide information about the GitHub location
       required:
-        - group
-        - host
+        - org
       properties:
-        host:
-          title: Repo Host
+        org:
+          title: GitHub Organization
           type: string
-          description: Your SCM host
-          default: gitlab-gitlab.apps.cluster-xxxxx.xxxxx.sandboxXXX.opentlc.com
-        group:
-          title: Repo Group
-          type: string
-          description: Your SCM host organization/group
-          default: rhdhub
+          description: Your GitHub organization
+          default: virt-corp
     - title: Provide information about the new component
       required:
         - cluster_id
@@ -38,12 +32,12 @@ spec:
           title: Cluster Id
           type: string
           description: Id of the cluster
-          default: .apps.cluster-xxxxx.xxxxx.sandboxxx.opentlc.com
-        namespace: 
+          default: .apps.endor.codell.io
+        namespace:
           title: Namespace
           type: string
           description: Namespace
-          default: rhdhub-user1
+          default: default
         owner:
           title: Owner
           type: string
@@ -69,21 +63,20 @@ spec:
         url: ./skeleton
         targetPath: ./source
         values:
-          group: ${{parameters.group}}
-          owner: default/${{parameters.owner}}
+          org: ${{parameters.org}}
+          owner: ${{parameters.owner}}
           cluster_id: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
           component_id: ${{parameters.component_id}}
-          host: ${{ parameters.host }}
           repoName: ${{parameters.component_id}}
           user_id: ${{parameters.owner}}
     - id: publishSource
       name: Publishing to Source Code Repository
-      action: publish:gitlab
+      action: publish:github
       input:
         sourcePath: ./source
-        description: ${{parameters.description}}
-        repoUrl: ${{ parameters.host }}?owner=${{ parameters.group }}&repo=${{parameters.component_id}}
+        description: RHEL9 VM Large - ${{parameters.component_id}}
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}
         defaultBranch: main
         protectDefaultBranch: false
         repoVisibility: public    
@@ -101,23 +94,23 @@ spec:
         copyWithoutTemplating: []
         values:
           component_id: ${{parameters.component_id}}
-          description: ${{parameters.description}}
-          destination:  https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}-gitops.git
-          source_repository: https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}.git
+          description: GitOps resources for ${{parameters.component_id}}
+          destination: https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
+          source_repository: https://github.com/${{parameters.org}}/${{parameters.component_id}}.git
           repository_name: ${{parameters.component_id}}
-          git_host: ${{ parameters.host }}
-          org: ${{parameters.group}}
+          git_host: github.com
+          org: ${{parameters.org}}
           cluster: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
           user_id: ${{parameters.owner}}
         targetPath: ./tenant-gitops
     - id: publishGitops
       name: Publishing to Deployment Resource Repository
-      action: publish:gitlab
+      action: publish:github
       input:
-        repoUrl: ${{ parameters.host }}?owner=${{ parameters.group }}&repo=${{parameters.component_id}}-gitops
-        title: gitops resources for ${{parameters.namespace}}-gitops
-        description: gitops resources for ${{parameters.namespace}}-gitops
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}-gitops
+        title: GitOps resources for ${{parameters.component_id}}
+        description: GitOps deployment resources for ${{parameters.component_id}}
         sourcePath: ./tenant-gitops
         defaultBranch: main
         protectDefaultBranch: false
@@ -127,9 +120,9 @@ spec:
       action: argocd:create-resources
       input:
         appName: ${{parameters.component_id}}-gitops
-        argoInstance: main
-        namespace: rhdhub
-        repoUrl: https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}-gitops.git
+        argoInstance: endor-gitops
+        namespace: ${{parameters.namespace}}
+        repoUrl: https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
         path: 'argocd/'
   output:
     links:

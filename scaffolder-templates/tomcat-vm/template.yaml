@@ -13,7 +13,7 @@ spec:
   type: VM
 
   parameters:
-    - title: Provide information about the GitLab location
+    - title: Provide information about the GitHub location
       required:
         - group
         - host
@@ -22,12 +22,12 @@ spec:
           title: Repo Host
           type: string
           description: Your SCM host
-          default: gitlab-gitlab.apps.cluster-xxxxx.xxxxx.sandboxXXX.opentlc.com
-        group:
-          title: Repo Group
+          default: github.com
+        org:
+          title: Repo Organization
           type: string
           description: Your SCM host organization/group
-          default: rhdhub
+          default: virt-corp
     - title: Provide information about the new component
       required:
         - cluster_id
@@ -38,12 +38,12 @@ spec:
           title: Cluster Id
           type: string
           description: Id of the cluster
-          default: .apps.cluster-xxxxx.xxxxx.sandboxxx.opentlc.com
+          default: .apps.endor.codell.io
         namespace: 
           title: Namespace
           type: string
           description: Namespace
-          default: rhdhub-userN
+          default: virt-corp-userN
         owner:
           title: Owner
           type: string
@@ -75,7 +75,7 @@ spec:
         url: ./skeleton
         targetPath: ./source
         values:
-          group: ${{parameters.group}}
+          org: ${{parameters.org}}
           owner: default/${{parameters.owner}}
           cluster_id: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
@@ -85,11 +85,11 @@ spec:
           user_id: ${{parameters.owner}}
     - id: publishSource
       name: Publishing to Source Code Repository
-      action: publish:gitlab
+      action: publish:github
       input:
         sourcePath: ./source
         description: ${{parameters.description}}
-        repoUrl: ${{ parameters.host }}?owner=${{ parameters.group }}&repo=${{parameters.component_id}}
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}
         defaultBranch: main
         protectDefaultBranch: false
         repoVisibility: public    
@@ -108,11 +108,11 @@ spec:
         values:
           component_id: ${{parameters.component_id}}
           description: ${{parameters.description}}
-          destination:  https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}-gitops.git
-          source_repository: https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}.git
+          destination:  https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
+          source_repository: https://github.com/${{parameters.org}}/${{parameters.component_id}}.git
           repository_name: ${{parameters.component_id}}
           git_host: ${{ parameters.host }}
-          org: ${{parameters.group}}
+          org: ${{parameters.org}}
           cluster: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
           image_host: ${{parameters.image_host}}/${{parameters.namespace}}
@@ -121,9 +121,9 @@ spec:
         targetPath: ./tenant-gitops
     - id: publishGitops
       name: Publishing to Deployment Resource Repository
-      action: publish:gitlab
+      action: publish:github
       input:
-        repoUrl: ${{ parameters.host }}?owner=${{ parameters.group }}&repo=${{parameters.component_id}}-gitops
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.component_id}}-gitops
         title: gitops resources for ${{parameters.namespace}}-gitops
         description: gitops resources for ${{parameters.namespace}}-gitops
         sourcePath: ./tenant-gitops
@@ -135,9 +135,9 @@ spec:
       action: argocd:create-resources
       input:
         appName: ${{parameters.component_id}}-gitops
-        argoInstance: main
-        namespace: rhdhub
-        repoUrl: https://${{ parameters.host }}/${{ parameters.group }}/${{parameters.component_id}}-gitops.git
+        argoInstance: endor-gitops
+        namespace: virt-corp
+        repoUrl: https://github.com/${{parameters.org}}/${{parameters.component_id}}-gitops.git
         path: 'argocd/'
   output:
     links:
