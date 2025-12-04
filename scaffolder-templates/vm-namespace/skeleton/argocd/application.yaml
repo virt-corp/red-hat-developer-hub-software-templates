@@ -4,14 +4,18 @@ kind: Application
 metadata:
   name: ${{values.namespace_id}}-env
   namespace: openshift-gitops
+  labels:
+    argocd/app-name: ${{values.namespace_id}}-env
+  annotations:
+    argocd/app-name: ${{values.namespace_id}}-env
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://github.com/${{values.org}}/${{values.namespace_id}}-gitops.git
-    targetRevision: main
-    path: manifests
+    targetRevision: HEAD
+    path: ./manifests
     directory:
       recurse: true
   destination:
@@ -22,9 +26,10 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=false
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
     retry:
-      limit: 5
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 10m

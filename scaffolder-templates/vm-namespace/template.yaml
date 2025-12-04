@@ -100,9 +100,13 @@ spec:
 
     - id: createArgoResources
       name: Create ArgoCD Application
-      action: kubernetes:apply
+      action: argocd:create-resources
       input:
-        manifestPath: https://raw.githubusercontent.com/${{parameters.org}}/${{parameters.namespace_id}}-gitops/main/argocd/application.yaml
+        appName: ${{parameters.namespace_id}}-env
+        argoInstance: endor-gitops
+        namespace: openshift-gitops
+        repoUrl: https://github.com/${{parameters.org}}/${{parameters.namespace_id}}-gitops.git
+        path: 'argocd/'
 
   output:
     links:
