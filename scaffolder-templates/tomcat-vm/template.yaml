@@ -48,14 +48,20 @@ spec:
               kind: [User]
     - title: Provide Build Information
       required:
-        - image_host
+        - datasource_name
         - component_id
       properties:
-        image_host:
-          title: Data Source
+        datasource_name:
+          title: DataSource Name
           type: string
-          description: Name of the DataSource to clone
-          default: https://gpte-public.s3.amazonaws.com/ama_demo/tomcat-mad.qcow2
+          description: Name of the DataSource to clone from openshift-virtualization-os-images
+          default: rhel9
+          enum:
+            - rhel9
+            - rhel9-soe
+            - rhel8
+            - centos-stream9
+            - fedora
         component_id:
           title: NAME
           default: tomcat-vm-template
@@ -108,8 +114,8 @@ spec:
           org: ${{parameters.org}}
           cluster: ${{parameters.cluster_id}}
           namespace: ${{parameters.namespace}}
-          image_host: ${{parameters.image_host}}
-          image_name: ${{parameters.component_id}}
+          datasource_name: ${{parameters.datasource_name}}
+          datasource_namespace: openshift-virtualization-os-images
           user_id: ${{parameters.owner}}
         targetPath: ./tenant-gitops
     - id: publishGitops

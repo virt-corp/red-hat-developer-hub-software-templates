@@ -86,6 +86,7 @@ spec:
         resources:
           requests:
             storage: 40Gi
-      source:
-        http:
-          url: {{ .Values.image.url }}
+      sourceRef:
+        kind: DataSource
+        name: {{ .Values.datasource.name }}
+        namespace: {{ .Values.datasource.namespace }}

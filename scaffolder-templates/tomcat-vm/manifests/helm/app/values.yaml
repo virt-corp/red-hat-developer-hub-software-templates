@@ -34,8 +34,9 @@ resources:
 storage:
   pvcSize: 40Gi
 
-image:
-  url: ${{values.image_host}}
+datasource:
+  name: ${{values.datasource_name}}
+  namespace: ${{values.datasource_namespace}}
 
 nodeSelector: {}
 
