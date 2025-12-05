@@ -97,6 +97,13 @@ spec:
           description: Password for cloud-user
           default: changeme123
           ui:widget: password
+        ssh_key:
+          title: SSH Public Key (Optional)
+          type: string
+          description: Your SSH public key for passwordless access (e.g., ssh-rsa AAAA...)
+          ui:widget: textarea
+          ui:options:
+            rows: 3
         networks:
           title: Network Configuration
           type: array
@@ -153,6 +160,7 @@ spec:
           preference: ${{parameters.os_image | replace('rhel', 'rhel.')}}
           storage_size: ${{parameters.storage_size}}
           vm_password: ${{parameters.vm_password}}
+          ssh_key: ${{parameters.ssh_key}}
           environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
           networks: ${{parameters.networks}}
           custom_nads: ${{parameters.custom_nads | default([])}}

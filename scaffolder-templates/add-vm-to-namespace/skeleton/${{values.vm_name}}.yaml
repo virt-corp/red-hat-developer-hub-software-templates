@@ -77,10 +77,14 @@ spec:
             name: ${{values.vm_name}}-volume
           name: rootdisk
         - cloudInitConfigDrive:
-            userData: |
+            userData: |-
               #cloud-config
               user: cloud-user
               password: ${{values.vm_password}}
               chpasswd:
                 expire: false
+              {%- if values.ssh_key %}
+              ssh_authorized_keys:
+                - ${{values.ssh_key}}
+              {%- endif %}
           name: cloudinitdisk
