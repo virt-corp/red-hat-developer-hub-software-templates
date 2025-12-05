@@ -3,7 +3,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-same-namespace
-  namespace: ${{values.namespace_id}}
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
