@@ -6,6 +6,7 @@ metadata:
   description: Adds a Red Hat Enterprise Linux virtual machine to an existing namespace
   annotations:
     backstage.io/techdocs-ref: dir:.
+    backstage.io/source-image: https://www.redhat.com/rhdc/managed-files/Logo-RedHat-A-Color-RGB.svg
   links:
     - url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
       title: Red Hat Enterprise Linux
