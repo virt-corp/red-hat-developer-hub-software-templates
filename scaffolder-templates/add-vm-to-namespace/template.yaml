@@ -172,13 +172,6 @@ spec:
         sourcePath: vm-manifest
         targetPath: manifests/vms
 
-    - id: registerVm
-      name: Register VM in Catalog
-      action: catalog:register
-      input:
-        repoContentsUrl: ${{steps.publishPr.output.targetBranchUrl}}
-        catalogInfoPath: /manifests/vms/catalog-info.yaml
-
   output:
     links:
       - title: View Pull Request
