@@ -4,6 +4,12 @@ metadata:
   name: vm-namespace-template
   title: VM Namespace Environment
   description: Creates a namespace environment for managing multiple VMs
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
+      title: Red Hat Enterprise Linux
+      icon: dashboard
   tags:
     - namespace
     - vm
