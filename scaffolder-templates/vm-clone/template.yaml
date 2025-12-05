@@ -1,0 +1,192 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: vm-clone-template
+  title: Clone Virtual Machine
+  description: Clone a VM from an existing VM or snapshot
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - vm
+    - kubevirt
+    - clone
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select Source
+      required:
+        - source_vm
+        - clone_type
+      properties:
+        source_vm:
+          title: Source VM
+          type: string
+          description: Select the VM to clone from
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: vm
+        clone_type:
+          title: Clone Type
+          type: string
+          description: Clone from running VM or from a snapshot
+          default: vm
+          enum:
+            - vm
+            - snapshot
+          enumNames:
+            - Clone from VM (creates snapshot first)
+            - Clone from existing snapshot
+        snapshot_name:
+          title: Snapshot Name
+          type: string
+          description: Name of existing snapshot (only if cloning from snapshot)
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+
+    - title: Clone Configuration
+      required:
+        - new_vm_name
+        - target_namespace
+      properties:
+        new_vm_name:
+          title: New VM Name
+          type: string
+          description: Name for the cloned VM
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        target_namespace:
+          title: Target Namespace
+          type: string
+          description: Namespace where the clone will be created
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: environment
+        instance_type:
+          title: Instance Size (Optional)
+          type: string
+          description: Override VM size (leave empty to use source VM size)
+          enum:
+            - ""
+            - u1.nano
+            - u1.micro
+            - u1.small
+            - u1.medium
+            - u1.large
+            - u1.xlarge
+            - u1.2xlarge
+            - u1.2xmedium
+            - u1.4xlarge
+            - u1.8xlarge
+          enumNames:
+            - Use source VM size
+            - Nano (0.5 vCPU / 512MB RAM)
+            - Micro (1 vCPU / 1GB RAM)
+            - Small (1 vCPU / 2GB RAM)
+            - Medium (1 vCPU / 4GB RAM)
+            - Large (2 vCPU / 8GB RAM)
+            - XLarge (4 vCPU / 16GB RAM)
+            - 2XLarge (8 vCPU / 32GB RAM)
+            - 2XMedium (2 vCPU / 4GB RAM)
+            - 4XLarge (16 vCPU / 64GB RAM)
+            - 8XLarge (32 vCPU / 128GB RAM)
+
+  steps:
+    - id: fetchSourceVm
+      name: Fetch source VM information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.source_vm}}
+
+    - id: fetchTargetNamespace
+      name: Fetch target namespace information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.target_namespace}}
+
+    - id: createSnapshotIfNeeded
+      name: Create snapshot for cloning (if needed)
+      if: ${{parameters.clone_type == 'vm'}}
+      action: kubernetes:apply
+      input:
+        namespaceOverride: ${{steps.fetchSourceVm.output.entity.metadata.namespace}}
+        manifest: |
+          apiVersion: snapshot.kubevirt.io/v1alpha1
+          kind: VirtualMachineSnapshot
+          metadata:
+            name: ${{steps.fetchSourceVm.output.entity.metadata.name}}-clone-${{'' | now | replace(':', '-') | replace('.', '-') | lower}}
+            namespace: ${{steps.fetchSourceVm.output.entity.metadata.namespace}}
+            labels:
+              vm-name: ${{steps.fetchSourceVm.output.entity.metadata.name}}
+              created-by: rhdh
+              purpose: clone
+            annotations:
+              description: "Temporary snapshot for cloning to ${{parameters.new_vm_name}}"
+          spec:
+            source:
+              apiGroup: kubevirt.io
+              kind: VirtualMachine
+              name: ${{steps.fetchSourceVm.output.entity.metadata.name}}
+
+    - id: templateClonedVm
+      name: Generate cloned VM manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./vm-manifest
+        values:
+          new_vm_name: ${{parameters.new_vm_name}}
+          source_vm_name: ${{steps.fetchSourceVm.output.entity.metadata.name}}
+          source_namespace: ${{steps.fetchSourceVm.output.entity.metadata.namespace}}
+          target_namespace: ${{steps.fetchTargetNamespace.output.entity.metadata.name}}
+          clone_type: ${{parameters.clone_type}}
+          snapshot_name: ${{parameters.snapshot_name | default(steps.fetchSourceVm.output.entity.metadata.name + '-clone-' + ('' | now | replace(':', '-') | replace('.', '-') | lower))}}
+          instance_type: ${{parameters.instance_type | default('')}}
+          environment: ${{steps.fetchTargetNamespace.output.entity.spec.lifecycle}}
+
+    - id: publishPr
+      name: Create Pull Request with cloned VM
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=${{steps.fetchTargetNamespace.output.entity.metadata.name}}-gitops&owner=virt-corp
+        title: "Clone VM: ${{parameters.new_vm_name}} from ${{steps.fetchSourceVm.output.entity.metadata.name}}"
+        branchName: clone-vm-${{parameters.new_vm_name}}
+        description: |
+          ## Clone VM
+
+          This PR adds a cloned virtual machine to the namespace.
+
+          **Clone Details:**
+          - New VM Name: `${{parameters.new_vm_name}}`
+          - Source VM: `${{steps.fetchSourceVm.output.entity.metadata.name}}`
+          - Source Namespace: `${{steps.fetchSourceVm.output.entity.metadata.namespace}}`
+          - Clone Type: ${{parameters.clone_type}}
+          ${{parameters.instance_type && '- Instance Type: ' + parameters.instance_type || ''}}
+
+          Once merged, ArgoCD will automatically deploy the cloned VM to the `${{steps.fetchTargetNamespace.output.entity.metadata.name}}` namespace.
+        sourcePath: vm-manifest
+        targetPath: manifests/vms
+
+  output:
+    links:
+      - title: View Pull Request
+        url: ${{steps.publishPr.output.remoteUrl}}
+      - title: Source VM in Console
+        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchSourceVm.output.entity.metadata.namespace}}/kubevirt.io~v1~VirtualMachine/${{steps.fetchSourceVm.output.entity.metadata.name}}
+      - title: Go to Target Namespace
+        url: ${{steps.fetchTargetNamespace.output.entity.metadata.annotations['backstage.io/source-location'] | replace('url:', '')}}
+    text:
+      - title: Clone Initiated
+        content: |
+          VM clone operation initiated successfully!
+
+          **Details:**
+          - New VM Name: `${{parameters.new_vm_name}}`
+          - Source VM: `${{steps.fetchSourceVm.output.entity.metadata.name}}`
+          - Target Namespace: `${{steps.fetchTargetNamespace.output.entity.metadata.name}}`
+          - Clone Method: ${{parameters.clone_type == 'vm' && 'Direct VM clone (snapshot created)' || 'Clone from existing snapshot'}}
+
+          A pull request has been created. Once merged, the cloned VM will be deployed via ArgoCD.

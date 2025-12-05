@@ -1,0 +1,117 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${{values.vm_name}}
+  namespace: ${{values.namespace_id}}
+  labels:
+    app: ${{values.vm_name}}
+    environment: ${{values.environment}}
+    os-type: windows
+spec:
+  dataVolumeTemplates:
+    - metadata:
+        name: ${{values.vm_name}}-volume
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: ${{values.os_version}}
+          namespace: openshift-virtualization-os-images
+        storage:
+          resources:
+            requests:
+              storage: ${{values.storage_size}}
+  instancetype:
+    name: ${{values.instance_type}}
+  preference:
+    name: ${{values.preference}}
+  running: true
+  template:
+    metadata:
+      labels:
+        app: ${{values.vm_name}}
+        environment: ${{values.environment}}
+        os-type: windows
+    spec:
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - cdrom:
+                bus: sata
+              name: sysprep
+          interfaces:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+            - name: podnet
+              masquerade: {}
+  {%- else %}
+            - name: {{ network | replace("/", "-") }}
+              bridge: {}
+  {%- endif %}
+{%- endfor %}
+          tpm: {}
+      networks:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+        - name: podnet
+          pod: {}
+  {%- else %}
+    {%- set parts = network.split("/") %}
+        - name: {{ network | replace("/", "-") }}
+          multus:
+            networkName: {{ parts[0] }}/{{ parts[1] }}
+  {%- endif %}
+{%- endfor %}
+      volumes:
+        - dataVolume:
+            name: ${{values.vm_name}}-volume
+          name: rootdisk
+        - name: sysprep
+          sysprep:
+            configMap:
+              name: ${{values.vm_name}}-sysprep
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${{values.vm_name}}-sysprep
+  namespace: ${{values.namespace_id}}
+data:
+  autounattend.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <unattend xmlns="urn:schemas-microsoft-com:unattend">
+      <settings pass="windowsPE">
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+          <UserData>
+            <AcceptEula>true</AcceptEula>
+          </UserData>
+        </component>
+      </settings>
+      <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+          <UserAccounts>
+            <AdministratorPassword>
+              <Value>${{values.admin_password}}</Value>
+              <PlainText>true</PlainText>
+            </AdministratorPassword>
+          </UserAccounts>
+          <AutoLogon>
+            <Username>Administrator</Username>
+            <Password>
+              <Value>${{values.admin_password}}</Value>
+              <PlainText>true</PlainText>
+            </Password>
+            <Enabled>true</Enabled>
+            <LogonCount>1</LogonCount>
+          </AutoLogon>
+          <OOBE>
+            <HideEULAPage>true</HideEULAPage>
+            <SkipMachineOOBE>true</SkipMachineOOBE>
+            <SkipUserOOBE>true</SkipUserOOBE>
+          </OOBE>
+        </component>
+      </settings>
+    </unattend>

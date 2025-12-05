@@ -1,0 +1,178 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: windows-vm-template
+  title: Add Windows VM to Namespace
+  description: Adds a Microsoft Windows Server virtual machine to an existing namespace
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - vm
+    - windows
+    - namespace
+    - kubevirt
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select Namespace
+      required:
+        - namespace_component
+      properties:
+        namespace_component:
+          title: Namespace Environment
+          type: string
+          description: Select the namespace to add this VM to
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: environment
+
+    - title: VM Configuration
+      required:
+        - vm_name
+        - os_version
+        - instance_type
+      properties:
+        vm_name:
+          title: VM Name
+          type: string
+          description: Name for the virtual machine
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        os_version:
+          title: Windows Version
+          type: string
+          description: Microsoft Windows Server version
+          default: win2k22
+          enum:
+            - win2k19
+            - win2k22
+            - win11
+          enumNames:
+            - Windows Server 2019
+            - Windows Server 2022
+            - Windows 11
+        instance_type:
+          title: Instance Size
+          type: string
+          description: VM size (vCPU / Memory) - Windows requires minimum 2GB RAM
+          default: u1.large
+          enum:
+            - u1.medium
+            - u1.large
+            - u1.xlarge
+            - u1.2xlarge
+            - u1.2xmedium
+            - u1.4xlarge
+            - u1.8xlarge
+          enumNames:
+            - Medium (1 vCPU / 4GB RAM)
+            - Large (2 vCPU / 8GB RAM)
+            - XLarge (4 vCPU / 16GB RAM)
+            - 2XLarge (8 vCPU / 32GB RAM)
+            - 2XMedium (2 vCPU / 4GB RAM)
+            - 4XLarge (16 vCPU / 64GB RAM)
+            - 8XLarge (32 vCPU / 128GB RAM)
+        storage_size:
+          title: Storage Size
+          type: string
+          description: Root disk size (Windows requires minimum 60GB)
+          default: 100Gi
+        admin_password:
+          title: Administrator Password
+          type: string
+          description: Password for Administrator account
+          default: Ch@ngeMe123!
+          ui:widget: password
+        networks:
+          title: Network Configuration
+          type: array
+          description: Select networks to attach to the VM
+          default: ["pod"]
+          items:
+            type: string
+            enum:
+              - pod
+              - default/vlan10-bridge
+              - default/vlan250
+              - default/vlan251
+              - default/vlan252
+            enumNames:
+              - Pod Network (masquerade)
+              - VLAN 10 Bridge (default namespace)
+              - VLAN 250 (default namespace)
+              - VLAN 251 (default namespace)
+              - VLAN 252 (default namespace)
+          uniqueItems: true
+
+  steps:
+    - id: fetchNamespaceInfo
+      name: Fetch namespace information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.namespace_component}}
+
+    - id: templateVm
+      name: Generate VM manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./vm-manifest
+        values:
+          vm_name: ${{parameters.vm_name}}
+          namespace_id: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}}
+          os_version: ${{parameters.os_version}}
+          instance_type: ${{parameters.instance_type}}
+          preference: ${{parameters.os_version | replace('win', 'windows.')}}
+          storage_size: ${{parameters.storage_size}}
+          admin_password: ${{parameters.admin_password}}
+          environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          networks: ${{parameters.networks}}
+
+    - id: publishPr
+      name: Create Pull Request with VM manifest
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops&owner=virt-corp
+        title: "Add Windows VM: ${{parameters.vm_name}}"
+        branchName: add-windows-vm-${{parameters.vm_name}}
+        description: |
+          ## Add Windows VM to Namespace
+
+          This PR adds a new Windows virtual machine to the namespace.
+
+          **VM Details:**
+          - Name: `${{parameters.vm_name}}`
+          - OS: ${{parameters.os_version}}
+          - Size: ${{parameters.instance_type}}
+          - Storage: ${{parameters.storage_size}}
+
+          **Important Notes:**
+          - Windows VMs take longer to boot (5-10 minutes) compared to Linux VMs
+          - Administrator password is set in cloud-init
+          - RDP is enabled by default (port 3389)
+
+          Once merged, ArgoCD will automatically deploy the VM to the `${{steps.fetchNamespaceInfo.output.entity.metadata.name}}` namespace.
+        sourcePath: vm-manifest
+        targetPath: manifests/vms
+
+  output:
+    links:
+      - title: View Pull Request
+        url: ${{steps.publishPr.output.remoteUrl}}
+      - title: Go to Namespace
+        url: ${{steps.fetchNamespaceInfo.output.entity.metadata.annotations['backstage.io/source-location'] | replace('url:', '')}}
+    text:
+      - title: Windows VM Created
+        content: |
+          Windows VM **${{parameters.vm_name}}** has been created successfully!
+
+          **Connection Information:**
+          - Protocol: RDP (Remote Desktop Protocol)
+          - Port: 3389
+          - Username: Administrator
+          - Password: (as configured)
+
+          **Note:** Windows VMs require 5-10 minutes to fully boot and be ready for connections. The VM will perform Windows Setup on first boot.

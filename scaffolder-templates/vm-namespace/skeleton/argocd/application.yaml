@@ -1,0 +1,43 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${{values.namespace_id}}-env
+  namespace: openshift-gitops
+  labels:
+    argocd/app-name: ${{values.namespace_id}}-env
+  annotations:
+    argocd/app-name: ${{values.namespace_id}}-env
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/${{values.org}}/${{values.namespace_id}}-gitops.git
+    targetRevision: HEAD
+    path: manifests
+    directory:
+      recurse: true
+      exclude: '**/catalog-info.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${{values.namespace_id}}
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /spec
+        - /status
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - RespectIgnoreDifferences=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 10m

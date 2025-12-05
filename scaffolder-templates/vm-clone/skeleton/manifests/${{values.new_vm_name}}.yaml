@@ -1,0 +1,52 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${{values.new_vm_name}}
+  namespace: ${{values.target_namespace}}
+  labels:
+    app: ${{values.new_vm_name}}
+    environment: ${{values.environment}}
+    cloned-from: ${{values.source_vm_name}}
+  annotations:
+    description: "Cloned from ${{values.source_vm_name}} in ${{values.source_namespace}}"
+spec:
+  dataVolumeTemplates:
+    - metadata:
+        name: ${{values.new_vm_name}}-volume
+      spec:
+        source:
+          snapshot:
+            name: ${{values.snapshot_name}}
+            namespace: ${{values.source_namespace}}
+        storage:
+          resources:
+            requests:
+              storage: 30Gi
+  {%- if values.instance_type %}
+  instancetype:
+    name: ${{values.instance_type}}
+  {%- endif %}
+  running: false
+  template:
+    metadata:
+      labels:
+        app: ${{values.new_vm_name}}
+        environment: ${{values.environment}}
+    spec:
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+          interfaces:
+            - name: podnet
+              masquerade: {}
+      networks:
+        - name: podnet
+          pod: {}
+      volumes:
+        - dataVolume:
+            name: ${{values.new_vm_name}}-volume
+          name: rootdisk
