@@ -1,0 +1,110 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: vm-actions-template
+  title: VM Actions (Start/Stop/Restart)
+  description: Perform actions on virtual machines (start, stop, restart)
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - vm
+    - kubevirt
+    - actions
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select VM
+      required:
+        - vm_component
+      properties:
+        vm_component:
+          title: Virtual Machine
+          type: string
+          description: Select the VM to perform actions on
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: vm
+
+    - title: VM Action
+      required:
+        - action
+      properties:
+        action:
+          title: Action
+          type: string
+          description: Action to perform on the VM
+          enum:
+            - start
+            - stop
+            - restart
+          enumNames:
+            - Start VM
+            - Stop VM
+            - Restart VM
+
+  steps:
+    - id: fetchVmInfo
+      name: Fetch VM information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.vm_component}}
+
+    - id: stopVm
+      name: Stop VM
+      if: ${{parameters.action == 'stop' || parameters.action == 'restart'}}
+      action: kubernetes:patch
+      input:
+        apiVersion: kubevirt.io/v1
+        kind: VirtualMachine
+        name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+        namespace: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+        patch:
+          spec:
+            running: false
+
+    - id: waitForStop
+      name: Wait for VM to stop (restart only)
+      if: ${{parameters.action == 'restart'}}
+      action: debug:wait
+      input:
+        milliseconds: 5000
+
+    - id: startVm
+      name: Start VM
+      if: ${{parameters.action == 'start' || parameters.action == 'restart'}}
+      action: kubernetes:patch
+      input:
+        apiVersion: kubevirt.io/v1
+        kind: VirtualMachine
+        name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+        namespace: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+        patch:
+          spec:
+            running: true
+
+    - id: logAction
+      name: Log action
+      action: debug:log
+      input:
+        message: |
+          VM Action: ${{parameters.action}}
+          VM Name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+          Namespace: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+          Status: ${{parameters.action == 'start' && 'VM started' || parameters.action == 'stop' && 'VM stopped' || 'VM restarted'}}
+
+  output:
+    links:
+      - title: View VM in Console
+        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchVmInfo.output.entity.metadata.namespace}}/kubevirt.io~v1~VirtualMachine/${{steps.fetchVmInfo.output.entity.metadata.name}}
+    text:
+      - title: Action Result
+        content: |
+          Successfully executed **${{parameters.action}}** on VM **${{steps.fetchVmInfo.output.entity.metadata.name}}**
+
+          Namespace: `${{steps.fetchVmInfo.output.entity.metadata.namespace}}`
+
+          ${{parameters.action == 'start' && 'The VM is now starting. It may take a few moments to be fully operational.' || parameters.action == 'stop' && 'The VM is now stopped. All running processes have been terminated.' || 'The VM has been restarted. It may take a few moments to be fully operational again.'}}
