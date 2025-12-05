@@ -25,7 +25,6 @@ spec:
   ignoreDifferences:
     - group: argoproj.io
       kind: Application
-      name: ${{values.namespace_id}}-env
       jsonPointers:
         - /spec
         - /status
