@@ -6,7 +6,6 @@ metadata:
   description: Creates a namespace environment for managing multiple VMs
   annotations:
     backstage.io/techdocs-ref: dir:.
-    backstage.io/source-image: https://www.redhat.com/rhdc/managed-files/Logo-RedHat-A-Color-RGB.svg
   links:
     - url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
       title: Red Hat Enterprise Linux
