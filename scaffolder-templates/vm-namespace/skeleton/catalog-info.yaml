@@ -10,6 +10,7 @@ metadata:
     argocd/instance-name: endor-gitops
     backstage.io/kubernetes-id: ${{values.namespace_id}}
     backstage.io/kubernetes-namespace: ${{values.namespace_id}}
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=${{values.namespace_id}}-env
     backstage.io/source-location: url:https://github.com/${{values.org}}/${{values.namespace_id}}-gitops
     github.com/project-slug: ${{values.org}}/${{values.namespace_id}}-gitops
   tags:
