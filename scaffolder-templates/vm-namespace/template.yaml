@@ -69,6 +69,21 @@ spec:
           type: string
           description: Description of this namespace environment
           default: VM namespace environment
+        cpu_limit:
+          title: CPU Limit
+          type: string
+          description: Maximum CPU cores for the namespace
+          default: "20"
+        memory_limit:
+          title: Memory Limit
+          type: string
+          description: Maximum memory for the namespace
+          default: "32Gi"
+        storage_limit:
+          title: Storage Limit
+          type: string
+          description: Maximum storage for the namespace
+          default: "500Gi"
 
   steps:
     - id: templateSource
@@ -85,6 +100,9 @@ spec:
           environment: ${{parameters.environment}}
           description: ${{parameters.description}}
           repoName: ${{parameters.namespace_id}}-gitops
+          cpu_limit: ${{parameters.cpu_limit}}
+          memory_limit: ${{parameters.memory_limit}}
+          storage_limit: ${{parameters.storage_limit}}
 
     - id: publishSource
       name: Publishing to Source Code Repository
