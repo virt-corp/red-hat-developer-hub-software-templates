@@ -1,0 +1,24 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{values.vm_name}}
+  title: ${{values.vm_name}}
+  description: Virtual Machine - ${{values.os_image}} (${{values.instance_type}})
+  annotations:
+    backstage.io/kubernetes-id: ${{values.vm_name}}
+    backstage.io/kubernetes-namespace: ${{values.namespace_id}}
+    backstage.io/kubernetes-label-selector: app=${{values.vm_name}}
+    argocd/app-name: ${{values.namespace_id}}-env
+  labels:
+    vm-type: ${{values.os_image}}
+    instance-type: ${{values.instance_type}}
+  tags:
+    - vm
+    - virtualmachine
+    - kubevirt
+    - ${{values.os_image}}
+spec:
+  type: virtual-machine
+  lifecycle: ${{values.environment}}
+  owner: operations
+  system: ${{values.namespace_id}}-env
