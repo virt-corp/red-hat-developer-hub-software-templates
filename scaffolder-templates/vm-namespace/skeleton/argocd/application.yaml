@@ -15,11 +15,18 @@ spec:
   source:
     repoURL: https://github.com/${{values.org}}/${{values.namespace_id}}-gitops.git
     targetRevision: HEAD
-    path: ./manifests
+    path: manifests
     directory:
       recurse: true
   destination:
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      name: ${{values.namespace_id}}-env
+      jsonPointers:
+        - /spec
+        - /status
   syncPolicy:
     automated:
       prune: true
