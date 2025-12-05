@@ -36,19 +36,10 @@ spec:
     # Allow traffic to pods in the same namespace
     - to:
         - podSelector: {}
-    # Allow traffic to OpenShift API server
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              network.openshift.io/policy-group: ingress
-      ports:
-        - protocol: TCP
-          port: 6443
-    # Allow external traffic (internet)
+    # Allow all egress traffic (for simplicity and to avoid blocking critical services)
+    # In production, you may want to restrict this further based on your security requirements
     - to:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 80
+        - protocol: UDP
