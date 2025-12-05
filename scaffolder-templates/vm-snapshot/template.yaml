@@ -1,0 +1,117 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: vm-snapshot-template
+  title: Create VM Snapshot
+  description: Create a snapshot of a virtual machine for backup or cloning
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - vm
+    - kubevirt
+    - snapshot
+    - backup
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select VM
+      required:
+        - vm_component
+      properties:
+        vm_component:
+          title: Virtual Machine
+          type: string
+          description: Select the VM to snapshot
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: vm
+
+    - title: Snapshot Configuration
+      required:
+        - snapshot_name
+      properties:
+        snapshot_name:
+          title: Snapshot Name
+          type: string
+          description: Name for the snapshot (e.g., pre-upgrade-2024-12-05)
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        description:
+          title: Description
+          type: string
+          description: Description of this snapshot (what it contains, why it was created)
+          default: Manual snapshot
+
+  steps:
+    - id: fetchVmInfo
+      name: Fetch VM information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.vm_component}}
+
+    - id: generateTimestamp
+      name: Generate timestamp
+      action: debug:log
+      input:
+        message: "Creating snapshot at: ${{'' | now}}"
+
+    - id: createSnapshot
+      name: Create VirtualMachineSnapshot
+      action: kubernetes:apply
+      input:
+        namespaceOverride: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+        manifest: |
+          apiVersion: snapshot.kubevirt.io/v1alpha1
+          kind: VirtualMachineSnapshot
+          metadata:
+            name: ${{parameters.snapshot_name}}
+            namespace: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+            labels:
+              vm-name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+              created-by: rhdh
+            annotations:
+              description: ${{parameters.description}}
+              created-at: "${{'' | now}}"
+          spec:
+            source:
+              apiGroup: kubevirt.io
+              kind: VirtualMachine
+              name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+
+    - id: logSnapshot
+      name: Log snapshot creation
+      action: debug:log
+      input:
+        message: |
+          VM Snapshot Created:
+          - Snapshot Name: ${{parameters.snapshot_name}}
+          - VM Name: ${{steps.fetchVmInfo.output.entity.metadata.name}}
+          - Namespace: ${{steps.fetchVmInfo.output.entity.metadata.namespace}}
+          - Description: ${{parameters.description}}
+
+  output:
+    links:
+      - title: View VM in Console
+        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchVmInfo.output.entity.metadata.namespace}}/kubevirt.io~v1~VirtualMachine/${{steps.fetchVmInfo.output.entity.metadata.name}}
+      - title: View Snapshots
+        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchVmInfo.output.entity.metadata.namespace}}/snapshot.kubevirt.io~v1alpha1~VirtualMachineSnapshot
+    text:
+      - title: Snapshot Created
+        content: |
+          Successfully created snapshot **${{parameters.snapshot_name}}** for VM **${{steps.fetchVmInfo.output.entity.metadata.name}}**
+
+          **Details:**
+          - Snapshot Name: `${{parameters.snapshot_name}}`
+          - VM Name: `${{steps.fetchVmInfo.output.entity.metadata.name}}`
+          - Namespace: `${{steps.fetchVmInfo.output.entity.metadata.namespace}}`
+          - Description: ${{parameters.description}}
+
+          The snapshot will capture the current state of the VM including all disks. You can use this snapshot to:
+          - Restore the VM to this state if needed
+          - Clone a new VM from this snapshot
+          - Create a backup before making changes
+
+          Check the snapshot status in the OpenShift console to ensure it completes successfully.
