@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  hard:
+    requests.cpu: "${{values.cpu_limit}}"
+    requests.memory: "${{values.memory_limit}}"
+    limits.cpu: "${{values.cpu_limit}}"
+    limits.memory: "${{values.memory_limit}}"
+    requests.storage: "${{values.storage_limit}}"
+    persistentvolumeclaims: "20"
