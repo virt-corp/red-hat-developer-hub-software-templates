@@ -3,12 +3,15 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: ${{values.vm_name}}
-  namespace: ${{values.namespace_id}}
   title: ${{values.vm_name}}
   description: Windows VM in ${{values.namespace_id}} namespace
   annotations:
     backstage.io/kubernetes-id: ${{values.vm_name}}
     backstage.io/kubernetes-namespace: ${{values.namespace_id}}
+  tags:
+    - vm
+    - windows
+    - ${{values.namespace_id}}
   links:
     - url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{values.namespace_id}}/kubevirt.io~v1~VirtualMachine/${{values.vm_name}}
       title: View in OpenShift Console
@@ -16,5 +19,5 @@ metadata:
 spec:
   type: vm
   lifecycle: ${{values.environment}}
-  owner: operations
+  owner: user:default/guest
   system: virtualization
