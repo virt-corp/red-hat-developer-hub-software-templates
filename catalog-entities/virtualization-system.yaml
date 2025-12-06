@@ -1,0 +1,13 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: virtualization
+  description: OpenShift Virtualization platform for running VMs on Kubernetes
+  tags:
+    - kubevirt
+    - virtualization
+    - openshift
+spec:
+  owner: user:default/guest
+  domain: infrastructure
