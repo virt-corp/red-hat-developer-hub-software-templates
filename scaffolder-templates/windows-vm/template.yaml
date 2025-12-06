@@ -158,6 +158,14 @@ spec:
         sourcePath: vm-manifest
         targetPath: manifests/vms
 
+    - id: registerVm
+      name: Register VM in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: https://github.com/virt-corp/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops/blob/add-windows-vm-${{parameters.vm_name}}/manifests/vms/catalog-info.yaml
+        catalogInfoPath: /manifests/vms/catalog-info.yaml
+        optional: true
+
   output:
     links:
       - title: View Pull Request
