@@ -21,3 +21,4 @@ spec:
   lifecycle: ${{values.environment}}
   owner: user:default/guest
   system: virtualization
+  subcomponentOf: component:default/${{values.namespace_id}}
