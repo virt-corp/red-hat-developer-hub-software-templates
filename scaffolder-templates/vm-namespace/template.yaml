@@ -122,6 +122,16 @@ spec:
         repoContentsUrl: ${{steps.publishSource.output.repoContentsUrl}}
         catalogInfoPath: /catalog-info.yaml
 
+    - id: createArgoResources
+      name: Create ArgoCD Application
+      action: argocd:create-resources
+      input:
+        appName: ${{values.namespace_id}}-env
+        argoInstance: endor-gitops
+        namespace: openshift-gitops
+        repoUrl: https://github.com/${{parameters.org}}/${{values.repoName}}.git
+        path: 'manifests/argocd/'
+
   output:
     links:
       - title: GitOps Repository
