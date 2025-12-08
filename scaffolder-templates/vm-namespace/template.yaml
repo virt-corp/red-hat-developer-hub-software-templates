@@ -126,10 +126,10 @@ spec:
       name: Create ArgoCD Application
       action: argocd:create-resources
       input:
-        appName: ${{values.namespace_id}}-env
+        appName: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}-env
         argoInstance: endor-gitops
         namespace: openshift-gitops
-        repoUrl: https://github.com/${{parameters.org}}/${{values.repoName}}.git
+        repoUrl: https://github.com/${{parameters.org}}/project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}-gitops.git
         path: 'manifests/argocd/'
 
   output:
