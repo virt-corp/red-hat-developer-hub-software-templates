@@ -186,9 +186,6 @@ spec:
           Once merged, ArgoCD will automatically deploy the VM to the `${{steps.fetchNamespaceInfo.output.entity.metadata.name}}` namespace.
         sourcePath: vm-manifest
         targetPath: .
-        paths:
-          - manifests/vms/${{parameters.vm_name}}.yaml
-          - catalog/${{parameters.vm_name}}-catalog-info.yaml
 
     - id: registerVm
       name: Register VM in Backstage Catalog
