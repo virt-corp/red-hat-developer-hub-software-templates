@@ -1,0 +1,90 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${{values.vm_name}}
+  namespace: ${{values.namespace_id}}
+  labels:
+    app: ${{values.vm_name}}
+    environment: ${{values.environment}}
+spec:
+  dataVolumeTemplates:
+    - metadata:
+        name: ${{values.vm_name}}-volume
+      spec:
+        sourceRef:
+          kind: DataSource
+          name: ${{values.os_image}}
+          namespace: openshift-virtualization-os-images
+        storage:
+          resources:
+            requests:
+              storage: ${{values.storage_size}}
+  instancetype:
+    name: ${{values.instance_type}}
+  preference:
+    name: ${{values.preference}}
+  running: true
+  template:
+    metadata:
+      labels:
+        app: ${{values.vm_name}}
+        environment: ${{values.environment}}
+    spec:
+      domain:
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+            - name: podnet
+              masquerade: {}
+  {%- else %}
+            - name: {{ network | replace("/", "-") }}
+              bridge: {}
+  {%- endif %}
+{%- endfor %}
+{%- for nad in values.custom_nads %}
+            - name: {{ nad | replace("/", "-") }}
+              bridge: {}
+{%- endfor %}
+      networks:
+{%- for network in values.networks %}
+  {%- if network == "pod" %}
+        - name: podnet
+          pod: {}
+  {%- else %}
+    {%- set parts = network.split("/") %}
+        - name: {{ network | replace("/", "-") }}
+          multus:
+            networkName: {{ parts[0] }}/{{ parts[1] }}
+  {%- endif %}
+{%- endfor %}
+{%- for nad in values.custom_nads %}
+  {%- set parts = nad.split("/") %}
+        - name: {{ nad | replace("/", "-") }}
+          multus:
+            networkName: {{ parts[0] }}/{{ parts[1] }}
+{%- endfor %}
+      volumes:
+        - dataVolume:
+            name: ${{values.vm_name}}-volume
+          name: rootdisk
+        - cloudInitConfigDrive:
+            userData: |-
+              #cloud-config
+              user: cloud-user
+              password: ${{values.vm_password}}
+              chpasswd:
+                expire: false
+              {%- if values.ssh_key %}
+              ssh_authorized_keys:
+                - ${{values.ssh_key}}
+              {%- endif %}
+          name: cloudinitdisk

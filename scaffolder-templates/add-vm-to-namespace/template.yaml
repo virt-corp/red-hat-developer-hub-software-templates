@@ -1,0 +1,206 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: add-rhel-vm-template
+  title: Add RHEL VM to Namespace
+  description: Adds a Red Hat Enterprise Linux virtual machine to an existing namespace
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/source-image: https://www.redhat.com/rhdc/managed-files/Logo-RedHat-A-Color-RGB.svg
+  links:
+    - url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
+      title: Red Hat Enterprise Linux
+      icon: dashboard
+  tags:
+    - vm
+    - rhel
+    - namespace
+    - kubevirt
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select Namespace
+      required:
+        - namespace_component
+      properties:
+        namespace_component:
+          title: Namespace Environment
+          type: string
+          description: Select the namespace to add this VM to
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: environment
+
+    - title: VM Configuration
+      required:
+        - vm_name
+        - os_image
+        - instance_type
+      properties:
+        vm_name:
+          title: VM Name
+          type: string
+          description: Name for the virtual machine
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        os_image:
+          title: RHEL Version
+          type: string
+          description: Red Hat Enterprise Linux version
+          default: rhel9
+          enum:
+            - rhel8
+            - rhel9
+            - rhel10
+          enumNames:
+            - RHEL 8
+            - RHEL 9
+            - RHEL 10
+        instance_type:
+          title: Instance Size
+          type: string
+          description: VM size (vCPU / Memory)
+          default: u1.small
+          enum:
+            - u1.nano
+            - u1.micro
+            - u1.small
+            - u1.medium
+            - u1.large
+            - u1.xlarge
+            - u1.2xlarge
+            - u1.2xmedium
+            - u1.4xlarge
+            - u1.8xlarge
+          enumNames:
+            - Nano (0.5 vCPU / 512MB RAM)
+            - Micro (1 vCPU / 1GB RAM)
+            - Small (1 vCPU / 2GB RAM)
+            - Medium (1 vCPU / 4GB RAM)
+            - Large (2 vCPU / 8GB RAM)
+            - XLarge (4 vCPU / 16GB RAM)
+            - 2XLarge (8 vCPU / 32GB RAM)
+            - 2XMedium (2 vCPU / 4GB RAM)
+            - 4XLarge (16 vCPU / 64GB RAM)
+            - 8XLarge (32 vCPU / 128GB RAM)
+        storage_size:
+          title: Storage Size
+          type: string
+          description: Root disk size
+          default: 30Gi
+        vm_password:
+          title: VM Password
+          type: string
+          description: Password for cloud-user
+          default: changeme123
+          ui:widget: password
+        ssh_key:
+          title: SSH Public Key (Optional)
+          type: string
+          description: Your SSH public key for passwordless access (e.g., ssh-rsa AAAA...)
+          ui:widget: textarea
+          ui:options:
+            rows: 3
+        networks:
+          title: Network Configuration
+          type: array
+          description: Select networks to attach to the VM
+          default: ["pod"]
+          items:
+            type: string
+            enum:
+              - pod
+              - default/vlan10-bridge
+              - default/vlan250
+              - default/vlan251
+              - default/vlan252
+            enumNames:
+              - Pod Network (masquerade)
+              - VLAN 10 Bridge (default namespace)
+              - VLAN 250 (default namespace)
+              - VLAN 251 (default namespace)
+              - VLAN 252 (default namespace)
+          uniqueItems: true
+        custom_nads:
+          title: Additional NADs
+          type: array
+          description: Add custom NetworkAttachmentDefinitions (format namespace/nad-name)
+          items:
+            type: string
+            pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?/[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          uniqueItems: true
+
+  steps:
+    - id: fetchNamespaceInfo
+      name: Fetch namespace information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.namespace_component}}
+
+    - id: listNADs
+      name: List available Network Attachment Definitions
+      action: debug:log
+      input:
+        message: "Fetching NADs from namespace: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}} and default namespace"
+
+    - id: templateVm
+      name: Generate VM manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./vm-manifest
+        values:
+          vm_name: ${{parameters.vm_name}}
+          namespace_id: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}}
+          os_image: ${{parameters.os_image}}
+          instance_type: ${{parameters.instance_type}}
+          preference: ${{parameters.os_image | replace('rhel', 'rhel.')}}
+          storage_size: ${{parameters.storage_size}}
+          vm_password: ${{parameters.vm_password}}
+          ssh_key: ${{parameters.ssh_key}}
+          environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          networks: ${{parameters.networks}}
+          custom_nads: ${{parameters.custom_nads | default([])}}
+
+    - id: publishPr
+      name: Create Pull Request with VM manifest
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops&owner=virt-corp
+        title: "Add RHEL VM: ${{parameters.vm_name}}"
+        branchName: add-rhel-vm-${{parameters.vm_name}}
+        description: |
+          ## Add RHEL VM to Namespace
+
+          This PR adds a new Red Hat Enterprise Linux virtual machine to the namespace.
+
+          **VM Details:**
+          - Name: `${{parameters.vm_name}}`
+          - OS: ${{parameters.os_image}}
+          - Size: ${{parameters.instance_type}}
+          - Storage: ${{parameters.storage_size}}
+
+          Once merged, ArgoCD will automatically deploy the VM to the `${{steps.fetchNamespaceInfo.output.entity.metadata.name}}` namespace.
+        sourcePath: vm-manifest
+        targetPath: .
+        paths:
+          - manifests/vms/${{parameters.vm_name}}.yaml
+          - catalog/${{parameters.vm_name}}-catalog-info.yaml
+
+    - id: registerVm
+      name: Register VM in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: https://github.com/virt-corp/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops/blob/add-rhel-vm-${{parameters.vm_name}}/catalog/${{parameters.vm_name}}-catalog-info.yaml
+        catalogInfoPath: /catalog/${{parameters.vm_name}}-catalog-info.yaml
+        optional: true
+
+  output:
+    links:
+      - title: View Pull Request
+        url: ${{steps.publishPr.output.remoteUrl}}
+      - title: Go to Namespace
+        url: ${{steps.fetchNamespaceInfo.output.entity.metadata.annotations['backstage.io/source-location'] | replace('url:', '')}}
