@@ -122,6 +122,13 @@ spec:
         repoContentsUrl: ${{steps.publishSource.output.repoContentsUrl}}
         catalogInfoPath: /catalog-info.yaml
 
+    - id: createArgoCDApp
+      name: Create ArgoCD Application
+      action: kubernetes:apply
+      input:
+        manifestPath: ./source/manifests/argocd/application.yaml
+        clusterName: endor
+
   output:
     links:
       - title: GitOps Repository
