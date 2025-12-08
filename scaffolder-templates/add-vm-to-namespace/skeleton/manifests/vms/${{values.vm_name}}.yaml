@@ -89,4 +89,10 @@ spec:
               ssh_authorized_keys:
                 - ${{values.ssh_key}}
               {%- endif %}
+              users:
+                - name: rex-user
+                  lock_passwd: false
+                  passwd: $6$rounds=4096$saltsaltsal$IxDD3jeSOb5eB1CX5LBsqZFVkJdJo6xQ5NMSBzrzMDzAMqGvPOXpKUqgQBqHTvZMKmHqRVUvp.xFPNOqLOWYe1
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  groups: wheel
           name: cloudinitdisk
