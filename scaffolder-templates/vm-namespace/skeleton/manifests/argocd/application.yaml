@@ -18,7 +18,7 @@ spec:
     path: manifests
     directory:
       recurse: true
-      exclude: '**/catalog-info.yaml'
+      exclude: '{**/catalog-info.yaml,argocd/**}'
   destination:
     server: https://kubernetes.default.svc
     namespace: ${{values.namespace_id}}
