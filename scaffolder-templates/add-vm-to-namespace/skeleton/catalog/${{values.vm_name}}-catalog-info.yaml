@@ -20,6 +20,6 @@ metadata:
 spec:
   type: vm
   lifecycle: ${{values.environment}}
-  owner: user:default/guest
+  owner: ${{values.owner}}
   system: virtualization
   subcomponentOf: component:default/${{values.namespace_id}}

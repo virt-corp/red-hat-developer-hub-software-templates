@@ -129,6 +129,7 @@ spec:
           storage_size: ${{parameters.storage_size}}
           admin_password: ${{parameters.admin_password}}
           environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          owner: ${{steps.fetchNamespaceInfo.output.entity.spec.owner}}
           networks: ${{parameters.networks}}
 
     - id: publishPr

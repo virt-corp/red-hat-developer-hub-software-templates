@@ -162,6 +162,7 @@ spec:
           vm_password: ${{parameters.vm_password}}
           ssh_key: ${{parameters.ssh_key}}
           environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          owner: ${{steps.fetchNamespaceInfo.output.entity.spec.owner}}
           networks: ${{parameters.networks}}
           custom_nads: ${{parameters.custom_nads | default([])}}
 
