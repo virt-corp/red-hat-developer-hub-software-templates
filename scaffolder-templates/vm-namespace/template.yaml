@@ -30,16 +30,10 @@ spec:
           default: virt-corp
     - title: Provide information about the new namespace
       required:
-        - namespace_id
         - environment
         - cluster_id
         - owner
       properties:
-        namespace_id:
-          title: Namespace Name
-          type: string
-          description: Name of the namespace to create (e.g., team-vms, workloads)
-          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
         environment:
           title: Environment
           type: string
@@ -86,6 +80,33 @@ spec:
           default: "500Gi"
 
   steps:
+    - id: getNextProjectNumber
+      name: Calculate next project number
+      action: github:api:request
+      input:
+        endpoint: /orgs/${{parameters.org}}/repos
+        method: GET
+        params:
+          type: public
+          per_page: 100
+
+    - id: calculateNamespace
+      name: Calculate namespace ID
+      action: roadiehq:utils:jsonata
+      input:
+        data: ${{steps.getNextProjectNumber.output.body}}
+        expression: |
+          (
+            $repos := $[name ~> /^project-000(\d+)-gitops$/];
+            $numbers := $repos.(
+              $match := $string(name) ~> /^project-000(\d+)-gitops$/;
+              $match ? $number($match.groups[0]) : 0
+            );
+            $maxNumber := $max($numbers);
+            $nextNumber := $maxNumber >= 1 ? $maxNumber + 1 : 1;
+            "project-000" & $string($nextNumber)
+          )
+
     - id: templateSource
       name: Generating the namespace component
       action: fetch:template
@@ -96,10 +117,10 @@ spec:
           org: ${{parameters.org}}
           owner: ${{parameters.owner}}
           cluster_id: ${{parameters.cluster_id}}
-          namespace_id: ${{parameters.namespace_id}}
+          namespace_id: ${{steps.calculateNamespace.output.result}}
           environment: ${{parameters.environment}}
           description: ${{parameters.description}}
-          repoName: ${{parameters.namespace_id}}-gitops
+          repoName: ${{steps.calculateNamespace.output.result}}-gitops
           cpu_limit: ${{parameters.cpu_limit}}
           memory_limit: ${{parameters.memory_limit}}
           storage_limit: ${{parameters.storage_limit}}
@@ -109,8 +130,8 @@ spec:
       action: publish:github
       input:
         sourcePath: ./source
-        description: Namespace environment - ${{parameters.namespace_id}} (${{parameters.environment}})
-        repoUrl: github.com?owner=${{parameters.org}}&repo=${{parameters.namespace_id}}-gitops
+        description: Namespace environment - ${{steps.calculateNamespace.output.result}} (${{parameters.environment}})
+        repoUrl: github.com?owner=${{parameters.org}}&repo=${{steps.calculateNamespace.output.result}}-gitops
         defaultBranch: main
         protectDefaultBranch: false
         repoVisibility: public
