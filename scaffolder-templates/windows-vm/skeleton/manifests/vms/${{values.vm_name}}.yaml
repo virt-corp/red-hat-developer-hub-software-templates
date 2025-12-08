@@ -4,6 +4,8 @@ kind: VirtualMachine
 metadata:
   name: ${{values.vm_name}}
   namespace: ${{values.namespace_id}}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: ${{values.vm_name}}
     environment: ${{values.environment}}

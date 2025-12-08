@@ -1,0 +1,30 @@
+---
+# ArgoCD Hook: Trigger AAP Route53 Registration Workflow
+# This triggers after the VM is created and uses the AAP Operator's AnsibleWorkflow CRD
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleWorkflow
+metadata:
+  name: register-${{values.vm_name}}-route53
+  namespace: aap
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"  # Run after VM creation (wave 1)
+  labels:
+    app: route53-registration
+    vm-name: ${{values.vm_name}}
+    vm-namespace: ${{values.namespace_id}}
+spec:
+  # Extra variables passed to AAP workflow
+  # NOTE: "Extra variables prompt on launch" must be enabled in AAP workflow template
+  extra_vars:
+    target_host: ${{values.vm_name}}  # Target specific VM from inventory
+    dns_zone: codell.io
+
+  # Secret containing AAP Controller credentials
+  connection_secret: controller-access
+
+  # Name of the workflow template in AAP
+  workflow_template_name: rhel-post-deployment-workflow
+
+  # Inventory in AAP - will be synced in workflow step 1
+  # NOTE: "Inventory prompt on launch" must be enabled in AAP workflow template
+  inventory: openshift
