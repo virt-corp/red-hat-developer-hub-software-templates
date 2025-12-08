@@ -6,6 +6,7 @@ metadata:
   description: Adds a Microsoft Windows Server virtual machine to an existing namespace
   annotations:
     backstage.io/techdocs-ref: dir:.
+    backstage.io/template-image: https://raw.githubusercontent.com/virt-corp/red-hat-developer-hub-software-templates/main/scaffolder-templates/images/windows-logo.png
   tags:
     - vm
     - windows
