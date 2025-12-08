@@ -156,14 +156,17 @@ spec:
 
           Once merged, ArgoCD will automatically deploy the VM to the `${{steps.fetchNamespaceInfo.output.entity.metadata.name}}` namespace.
         sourcePath: vm-manifest
-        targetPath: manifests/vms
+        targetPath: .
+        paths:
+          - manifests/vms/${{parameters.vm_name}}.yaml
+          - catalog/${{parameters.vm_name}}-catalog-info.yaml
 
     - id: registerVm
       name: Register VM in Backstage Catalog
       action: catalog:register
       input:
-        repoContentsUrl: https://github.com/virt-corp/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops/blob/add-windows-vm-${{parameters.vm_name}}/manifests/vms/catalog-info.yaml
-        catalogInfoPath: /manifests/vms/catalog-info.yaml
+        repoContentsUrl: https://github.com/virt-corp/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}-gitops/blob/add-windows-vm-${{parameters.vm_name}}/catalog/${{parameters.vm_name}}-catalog-info.yaml
+        catalogInfoPath: /catalog/${{parameters.vm_name}}-catalog-info.yaml
         optional: true
 
   output:
