@@ -1,0 +1,199 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: vm-namespace-nogitops-template
+  title: VM Namespace Environment (No GitOps)
+  description: Creates a namespace environment for managing multiple VMs using direct application
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
+      title: Red Hat Enterprise Linux
+      icon: dashboard
+  tags:
+    - namespace
+    - vm
+    - environment
+    - nogitops
+spec:
+  owner: operations
+  type: environment
+
+  parameters:
+    - title: Provide information about the new namespace
+      required:
+        - environment
+        - cluster_id
+        - owner
+      properties:
+        environment:
+          title: Environment
+          type: string
+          description: Environment type
+          default: dev
+          enum:
+            - dev
+            - prod
+          enumNames:
+            - Development
+            - Production
+        cluster_id:
+          title: Cluster Id
+          type: string
+          description: Id of the cluster
+          default: .apps.endor.codell.io
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the namespace
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [User]
+        description:
+          title: Description
+          type: string
+          description: Description of this namespace environment
+          default: VM namespace environment
+        cpu_limit:
+          title: CPU Limit
+          type: string
+          description: Maximum CPU cores for the namespace
+          default: "20"
+        memory_limit:
+          title: Memory Limit
+          type: string
+          description: Maximum memory for the namespace
+          default: "32Gi"
+        storage_limit:
+          title: Storage Limit
+          type: string
+          description: Maximum storage for the namespace
+          default: "500Gi"
+
+  steps:
+    - id: generateNamespaceId
+      name: Generate unique namespace ID
+      action: debug:log
+      input:
+        message: "Creating namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
+
+    - id: createNamespace
+      name: Create Namespace in OpenShift
+      action: kubernetes:apply
+      input:
+        manifest: |
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+            labels:
+              environment: ${{ parameters.environment }}
+              managed-by: rhdh
+
+    - id: createResourceQuota
+      name: Create Resource Quota
+      action: kubernetes:apply
+      input:
+        manifest: |
+          apiVersion: v1
+          kind: ResourceQuota
+          metadata:
+            name: compute-quota
+            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+          spec:
+            hard:
+              requests.cpu: "${{ parameters.cpu_limit }}"
+              requests.memory: "${{ parameters.memory_limit }}"
+              limits.cpu: "${{ parameters.cpu_limit }}"
+              limits.memory: "${{ parameters.memory_limit }}"
+              requests.storage: "${{ parameters.storage_limit }}"
+              persistentvolumeclaims: "20"
+
+    - id: createNetworkPolicy
+      name: Create Network Policy
+      action: kubernetes:apply
+      input:
+        manifest: |
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: allow-same-namespace
+            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+          spec:
+            podSelector: {}
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - podSelector: {}
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        policy-group.network.openshift.io/ingress: ""
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        network.openshift.io/policy-group: monitoring
+            egress:
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: openshift-dns
+                ports:
+                  - protocol: UDP
+                    port: 5353
+              - to:
+                  - podSelector: {}
+              - to:
+                  - namespaceSelector: {}
+                ports:
+                  - protocol: TCP
+                  - protocol: UDP
+
+    - id: createRoleBinding
+      name: Create Owner Admin Role Binding
+      action: kubernetes:apply
+      input:
+        manifest: |
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}-admin
+            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+          subjects:
+            - kind: User
+              name: ${{ parameters.owner }}
+              apiGroup: rbac.authorization.k8s.io
+          roleRef:
+            kind: ClusterRole
+            name: admin
+            apiGroup: rbac.authorization.k8s.io
+
+    - id: templateCatalog
+      name: Generate Catalog Info
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./catalog
+        values:
+          namespace_id: "project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
+          environment: ${{ parameters.environment }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          cluster_id: ${{ parameters.cluster_id }}
+
+    - id: registerCatalog
+      name: Register Namespace in Backstage Catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: ./catalog/catalog-info.yaml
+
+  output:
+    links:
+      - title: Open Namespace in OpenShift Console
+        url: https://console-openshift-console${{ parameters.cluster_id }}/k8s/cluster/projects/project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+      - title: Open Component in Catalog
+        icon: catalog
+        entityRef: ${{ steps.registerCatalog.output.entityRef }}

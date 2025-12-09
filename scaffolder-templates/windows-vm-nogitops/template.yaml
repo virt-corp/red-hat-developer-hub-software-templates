@@ -1,0 +1,181 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: windows-vm-nogitops-template
+  title: Add Windows VM to Namespace (No GitOps)
+  description: Adds a Microsoft Windows Server virtual machine to an existing namespace using direct application
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/template-image: https://raw.githubusercontent.com/virt-corp/red-hat-developer-hub-software-templates/main/scaffolder-templates/images/windows-logo.png
+  tags:
+    - vm
+    - windows
+    - namespace
+    - kubevirt
+    - nogitops
+spec:
+  owner: operations
+  type: service
+
+  parameters:
+    - title: Select Namespace
+      required:
+        - namespace_component
+      properties:
+        namespace_component:
+          title: Namespace Environment
+          type: string
+          description: Select the namespace to add this VM to
+          ui:field: EntityPicker
+          ui:options:
+            catalogFilter:
+              kind: [Component]
+              spec.type: environment
+
+    - title: VM Configuration
+      required:
+        - vm_name
+        - os_version
+        - instance_type
+      properties:
+        vm_name:
+          title: VM Name
+          type: string
+          description: Name for the virtual machine
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        os_version:
+          title: Windows Version
+          type: string
+          description: Microsoft Windows Server version
+          default: win2k22
+          enum:
+            - win2k19
+            - win2k22
+            - win11
+          enumNames:
+            - Windows Server 2019
+            - Windows Server 2022
+            - Windows 11
+        instance_type:
+          title: Instance Size
+          type: string
+          description: VM size (vCPU / Memory) - Windows requires minimum 2GB RAM
+          default: u1.large
+          enum:
+            - u1.medium
+            - u1.large
+            - u1.xlarge
+            - u1.2xlarge
+            - u1.2xmedium
+            - u1.4xlarge
+            - u1.8xlarge
+          enumNames:
+            - Medium (1 vCPU / 4GB RAM)
+            - Large (2 vCPU / 8GB RAM)
+            - XLarge (4 vCPU / 16GB RAM)
+            - 2XLarge (8 vCPU / 32GB RAM)
+            - 2XMedium (2 vCPU / 4GB RAM)
+            - 4XLarge (16 vCPU / 64GB RAM)
+            - 8XLarge (32 vCPU / 128GB RAM)
+        storage_size:
+          title: Storage Size
+          type: string
+          description: Root disk size (Windows requires minimum 60GB)
+          default: 100Gi
+        admin_password:
+          title: Administrator Password
+          type: string
+          description: Password for Administrator account
+          default: Ch@ngeMe123!
+          ui:widget: password
+        networks:
+          title: Network Configuration
+          type: array
+          description: Select networks to attach to the VM
+          default: ["pod"]
+          items:
+            type: string
+            enum:
+              - pod
+              - default/vlan10-bridge
+              - default/vlan250
+              - default/vlan251
+              - default/vlan252
+            enumNames:
+              - Pod Network (masquerade)
+              - VLAN 10 Bridge (default namespace)
+              - VLAN 250 (default namespace)
+              - VLAN 251 (default namespace)
+              - VLAN 252 (default namespace)
+          uniqueItems: true
+
+  steps:
+    - id: fetchNamespaceInfo
+      name: Fetch namespace information
+      action: catalog:fetch
+      input:
+        entityRef: ${{parameters.namespace_component}}
+
+    - id: logVmCreation
+      name: Log VM creation details
+      action: debug:log
+      input:
+        message: "Creating Windows VM ${{parameters.vm_name}} in namespace ${{steps.fetchNamespaceInfo.output.entity.metadata.name}}"
+
+    - id: templateVm
+      name: Generate VM manifests
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./vm-resources
+        values:
+          vm_name: ${{parameters.vm_name}}
+          namespace_id: ${{steps.fetchNamespaceInfo.output.entity.metadata.name}}
+          os_version: ${{parameters.os_version}}
+          instance_type: ${{parameters.instance_type}}
+          preference: ${{parameters.os_version | replace('win', 'windows.')}}
+          storage_size: ${{parameters.storage_size}}
+          admin_password: ${{parameters.admin_password}}
+          environment: ${{steps.fetchNamespaceInfo.output.entity.spec.lifecycle}}
+          owner: ${{steps.fetchNamespaceInfo.output.entity.spec.owner}}
+          networks: ${{parameters.networks}}
+
+    - id: applySysprepConfigMap
+      name: Create Sysprep ConfigMap
+      action: kubernetes:apply
+      input:
+        manifestPath: ./vm-resources/sysprep-configmap.yaml
+
+    - id: applyVirtualMachine
+      name: Create VirtualMachine in OpenShift
+      action: kubernetes:apply
+      input:
+        manifestPath: ./vm-resources/vm-manifest.yaml
+
+    - id: registerVm
+      name: Register VM in Backstage Catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: ./vm-resources/catalog-info.yaml
+
+  output:
+    links:
+      - title: View VM in OpenShift Console
+        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}/kubevirt.io~v1~VirtualMachine/${{parameters.vm_name}}
+      - title: View VM Component in Catalog
+        icon: catalog
+        entityRef: ${{steps.registerVm.output.entityRef}}
+      - title: Go to Namespace Component
+        entityRef: ${{parameters.namespace_component}}
+    text:
+      - title: Windows VM Created
+        content: |
+          Windows VM **${{parameters.vm_name}}** has been created successfully!
+
+          **Connection Information:**
+          - Protocol: RDP (Remote Desktop Protocol)
+          - Port: 3389
+          - Username: Administrator
+          - Password: (as configured)
+
+          **Note:** Windows VMs require 5-10 minutes to fully boot and be ready for connections. The VM will perform Windows Setup on first boot.

@@ -1,0 +1,23 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{values.namespace_id}}
+  {%- if values.description %}
+  description: ${{values.description}}
+  {%- endif %}
+  annotations:
+    backstage.io/kubernetes-id: ${{values.namespace_id}}
+    backstage.io/kubernetes-namespace: ${{values.namespace_id}}
+  tags:
+    - namespace
+    - vm
+    - ${{values.environment}}
+    - nogitops
+  links:
+    - url: https://console-openshift-console${{values.cluster_id}}/k8s/cluster/projects/${{values.namespace_id}}
+      title: OpenShift Project
+      icon: web
+spec:
+  type: environment
+  lifecycle: ${{values.environment}}
+  owner: ${{values.owner | dump}}
