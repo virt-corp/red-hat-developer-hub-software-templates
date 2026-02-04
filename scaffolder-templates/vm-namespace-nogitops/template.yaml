@@ -22,10 +22,16 @@ spec:
   parameters:
     - title: Provide information about the new namespace
       required:
+        - project_name
         - environment
         - cluster
         - owner
       properties:
+        project_name:
+          title: Project Name
+          type: string
+          description: Unique name for this project (e.g., webapp, database, api)
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
         environment:
           title: Environment
           type: string
@@ -82,7 +88,7 @@ spec:
       name: Generate unique namespace ID
       action: debug:log
       input:
-        message: "Creating namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
+        message: "Creating namespace: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
 
     - id: createNamespace
       name: Create Namespace in OpenShift
@@ -93,7 +99,7 @@ spec:
           apiVersion: v1
           kind: Namespace
           metadata:
-            name: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+            name: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
             labels:
               environment: ${{ parameters.environment }}
               managed-by: rhdh
@@ -108,7 +114,7 @@ spec:
           kind: ResourceQuota
           metadata:
             name: compute-quota
-            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+            namespace: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
           spec:
             hard:
               requests.cpu: "${{ parameters.cpu_limit }}"
@@ -128,7 +134,7 @@ spec:
           kind: NetworkPolicy
           metadata:
             name: allow-same-namespace
-            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+            namespace: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
           spec:
             podSelector: {}
             policyTypes:
@@ -170,8 +176,8 @@ spec:
           apiVersion: rbac.authorization.k8s.io/v1
           kind: RoleBinding
           metadata:
-            name: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}-admin
-            namespace: project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+            name: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}-admin
+            namespace: ${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
           subjects:
             - kind: User
               name: ${{ parameters.owner }}
@@ -188,7 +194,7 @@ spec:
         url: ./skeleton
         targetPath: ./catalog
         values:
-          namespace_id: "project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
+          namespace_id: "${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}"
           environment: ${{ parameters.environment }}
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
@@ -203,7 +209,7 @@ spec:
   output:
     links:
       - title: Open Namespace in OpenShift Console
-        url: https://console-openshift-console.apps.${{ parameters.cluster }}.codell.io/k8s/cluster/projects/project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+        url: https://console-openshift-console.apps.${{ parameters.cluster }}.codell.io/k8s/cluster/projects/${{ parameters.project_name }}-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
       - title: Open Component in Catalog
         icon: catalog
         entityRef: ${{ steps.registerCatalog.output.entityRef }}
