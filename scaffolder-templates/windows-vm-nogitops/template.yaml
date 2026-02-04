@@ -18,10 +18,22 @@ spec:
   type: service
 
   parameters:
-    - title: Select Namespace
+    - title: Select Cluster and Namespace
       required:
+        - cluster
         - namespace_component
       properties:
+        cluster:
+          title: Target Cluster
+          type: string
+          description: Select the OpenShift cluster to deploy the VM to
+          default: endor
+          enum:
+            - endor
+            - dagobah
+          enumNames:
+            - Endor (apps.endor.codell.io)
+            - Dagobah (apps.dagobah.codell.io)
         namespace_component:
           title: Namespace Environment
           type: string
@@ -145,12 +157,14 @@ spec:
       action: kubernetes:apply
       input:
         manifestPath: ./vm-resources/sysprep-configmap.yaml
+        clusterRef: ${{parameters.cluster}}
 
     - id: applyVirtualMachine
       name: Create VirtualMachine in OpenShift
       action: kubernetes:apply
       input:
         manifestPath: ./vm-resources/vm-manifest.yaml
+        clusterRef: ${{parameters.cluster}}
 
     - id: registerVm
       name: Register VM in Backstage Catalog
@@ -161,7 +175,7 @@ spec:
   output:
     links:
       - title: View VM in OpenShift Console
-        url: https://console-openshift-console.apps.endor.codell.io/k8s/ns/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}/kubevirt.io~v1~VirtualMachine/${{parameters.vm_name}}
+        url: https://console-openshift-console.apps.${{parameters.cluster}}.codell.io/k8s/ns/${{steps.fetchNamespaceInfo.output.entity.metadata.name}}/kubevirt.io~v1~VirtualMachine/${{parameters.vm_name}}
       - title: View VM Component in Catalog
         icon: catalog
         entityRef: ${{steps.registerVm.output.entityRef}}

@@ -23,7 +23,7 @@ spec:
     - title: Provide information about the new namespace
       required:
         - environment
-        - cluster_id
+        - cluster
         - owner
       properties:
         environment:
@@ -37,11 +37,17 @@ spec:
           enumNames:
             - Development
             - Production
-        cluster_id:
-          title: Cluster Id
+        cluster:
+          title: Target Cluster
           type: string
-          description: Id of the cluster
-          default: .apps.endor.codell.io
+          description: Select the OpenShift cluster to create the namespace in
+          default: endor
+          enum:
+            - endor
+            - dagobah
+          enumNames:
+            - Endor (apps.endor.codell.io)
+            - Dagobah (apps.dagobah.codell.io)
         owner:
           title: Owner
           type: string
@@ -82,6 +88,7 @@ spec:
       name: Create Namespace in OpenShift
       action: kubernetes:apply
       input:
+        clusterRef: ${{ parameters.cluster }}
         manifest: |
           apiVersion: v1
           kind: Namespace
@@ -95,6 +102,7 @@ spec:
       name: Create Resource Quota
       action: kubernetes:apply
       input:
+        clusterRef: ${{ parameters.cluster }}
         manifest: |
           apiVersion: v1
           kind: ResourceQuota
@@ -114,6 +122,7 @@ spec:
       name: Create Network Policy
       action: kubernetes:apply
       input:
+        clusterRef: ${{ parameters.cluster }}
         manifest: |
           apiVersion: networking.k8s.io/v1
           kind: NetworkPolicy
@@ -156,6 +165,7 @@ spec:
       name: Create Owner Admin Role Binding
       action: kubernetes:apply
       input:
+        clusterRef: ${{ parameters.cluster }}
         manifest: |
           apiVersion: rbac.authorization.k8s.io/v1
           kind: RoleBinding
@@ -182,7 +192,7 @@ spec:
           environment: ${{ parameters.environment }}
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
-          cluster_id: ${{ parameters.cluster_id }}
+          cluster: ${{ parameters.cluster }}
 
     - id: registerCatalog
       name: Register Namespace in Backstage Catalog
@@ -193,7 +203,7 @@ spec:
   output:
     links:
       - title: Open Namespace in OpenShift Console
-        url: https://console-openshift-console${{ parameters.cluster_id }}/k8s/cluster/projects/project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
+        url: https://console-openshift-console.apps.${{ parameters.cluster }}.codell.io/k8s/cluster/projects/project-${{ parameters.environment }}-${{ user.entity.metadata.name | lower }}
       - title: Open Component in Catalog
         icon: catalog
         entityRef: ${{ steps.registerCatalog.output.entityRef }}

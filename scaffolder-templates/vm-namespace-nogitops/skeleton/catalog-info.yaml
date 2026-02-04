@@ -14,7 +14,7 @@ metadata:
     - ${{values.environment}}
     - nogitops
   links:
-    - url: https://console-openshift-console${{values.cluster_id}}/k8s/cluster/projects/${{values.namespace_id}}
+    - url: https://console-openshift-console.apps.${{values.cluster}}.codell.io/k8s/cluster/projects/${{values.namespace_id}}
       title: OpenShift Project
       icon: web
 spec:
